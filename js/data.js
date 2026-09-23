@@ -136,10 +136,10 @@ export async function updateFile(id, patch) {
   return data;
 }
 
-export async function recentFiles(limit = 3) {
+export async function recentFiles(limit = 6) {
   const { data, error } = await supabase
     .from('files')
-    .select('id, title, updated_at, project_id, projects(name)')
+    .select('id, title, body, updated_at, project_id, directory_id, projects(name), directories(name)')
     .order('updated_at', { ascending: false })
     .limit(limit);
   if (error) throw error;
@@ -170,7 +170,7 @@ export async function inboxCount() {
 export async function filesByDirectory(projectId) {
   const { data, error } = await supabase
     .from('files')
-    .select('id, title, directory_id, updated_at')
+    .select('id, title, body, directory_id, updated_at')
     .eq('project_id', projectId)
     .order('updated_at', { ascending: false });
   if (error) throw error;
@@ -192,4 +192,46 @@ export async function getFile(id) {
     .single();
   if (error) throw error;
   return data;
+}
+
+// The rows behind inboxCount(): unfiled ideas, newest first. Same .or() filter,
+// so files orphaned by a deleted directory stay visible here too.
+export async function inboxFiles(limit = 6) {
+  const { data: inboxes, error: e1 } = await supabase
+    .from('directories')
+    .select('id')
+    .eq('is_inbox', true);
+  if (e1) throw e1;
+
+  const ids = inboxes.map((d) => d.id);
+  const filter = ids.length
+    ? 'directory_id.in.(' + ids.join(',') + '),directory_id.is.null'
+    : 'directory_id.is.null';
+
+  const { data, error } = await supabase
+    .from('files')
+    .select('id, title, body, updated_at, projects(name)')
+    .or(filter)
+    .order('updated_at', { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return data;
+}
+
+// Four numbers for the stat strip. Counts only — no rows come back.
+export async function dashboardStats() {
+  const count = async (table, build = (q) => q) => {
+    const { count: n, error } = await build(
+      supabase.from(table).select('id', { count: 'exact', head: true }));
+    if (error) throw error;
+    return n ?? 0;
+  };
+
+  const [projects, folders, ideas, unfiled] = await Promise.all([
+    count('projects'),
+    count('directories', (q) => q.eq('is_inbox', false)),
+    count('files'),
+    inboxCount(),
+  ]);
+  return { projects, folders, ideas, unfiled };
 }

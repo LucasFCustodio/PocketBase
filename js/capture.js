@@ -111,7 +111,7 @@ function renderWrite() {
     '<textarea id="idea" class="idea" placeholder="What\'s the idea?"></textarea>',
     '<div class="capture-actions">',
     '  <span class="hint">Ctrl + Enter</span>',
-    '  <button class="primary" id="clarify" disabled>Clarify it</button>',
+    '  <button class="btn btn--primary" id="clarify" disabled>Clarify it</button>',
     '</div>',
   ].join('');
 
@@ -248,7 +248,7 @@ function renderChips({ question, chips, newLabel, onPick, onNew, canFileHere = f
     '</div>',
     '<div class="capture-actions">',
     '<span class="hint">' + (canFileHere ? 'Esc to stop here' : 'Esc saves to Inbox') + '</span>',
-    canFileHere ? '<button class="ghost" id="file-here">File it here</button>' : '',
+    canFileHere ? '<button class="btn btn--secondary" id="file-here">File it here</button>' : '',
     '</div>',
   ].join('');
 
@@ -278,7 +278,7 @@ function breadcrumb() {
       .filter((d) => !d.is_inbox)
       .map((d) => d.name));
   if (!parts.length) return '';
-  return '<nav class="crumb">' + parts.map(esc).join(' <span>&rsaquo;</span> ') + '</nav>';
+  return '<nav class="capture-crumb">' + parts.map(esc).join(' <span>&rsaquo;</span> ') + '</nav>';
 }
 
 // --- final step: the file, open ---------------------------------------------
@@ -293,7 +293,7 @@ function renderOpen() {
     '<textarea class="idea" id="body">' + esc(f.body) + '</textarea>',
     '<div class="capture-actions">',
     '  <span class="hint" id="saved">Saved</span>',
-    '  <button class="primary" id="done">Done</button>',
+    '  <button class="btn btn--primary" id="done">Done</button>',
     '</div>',
   ].join('');
 

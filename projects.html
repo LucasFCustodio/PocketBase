@@ -7,26 +7,50 @@
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
-  <header class="bar">
-    <span class="brand"><a href="index.html">PocketBase</a></span>
-    <nav>
-      <button class="link" id="signout">Log out</button>
-    </nav>
-  </header>
+  <div class="app">
+    <aside class="sidebar" id="sidebar"></aside>
 
-  <main class="page">
-    <h2 class="section">Projects</h2>
-    <div class="rail" id="rail"></div>
+    <main class="main" id="board">
+      <header class="board-head">
+        <div>
+          <nav class="crumbs" id="crumbs"></nav>
+          <h1 class="board-title" id="board-title">Projects</h1>
+          <p class="board-sub" id="board-meta"></p>
+        </div>
+        <div class="board-actions">
+          <button class="btn btn--secondary" id="new-folder">New folder</button>
+          <button class="btn btn--primary" id="new-idea">+ New idea</button>
+        </div>
+      </header>
 
-    <h2 class="section">Inside this project</h2>
-    <nav class="crumbs" id="crumbs"></nav>
+      <div id="projects-section">
+        <div class="section-head">
+          <span class="caption">All projects</span>
+          <span class="badge" id="projects-count">0</span>
+          <i class="rule"></i>
+        </div>
+        <div class="grid-boards" id="projects"></div>
+      </div>
 
-    <h3 class="row-label">Folders</h3>
-    <div class="row" id="folders"></div>
+      <div id="folders-section">
+        <div class="section-head">
+          <span class="caption">Folders</span>
+          <span class="badge" id="folders-count">0</span>
+          <i class="rule"></i>
+        </div>
+        <div class="grid-boards" id="folders"></div>
+      </div>
 
-    <h3 class="row-label">Documents</h3>
-    <div class="row" id="documents"></div>
-  </main>
+      <div id="docs-section">
+        <div class="section-head">
+          <span class="caption">Ideas</span>
+          <span class="badge" id="docs-count">0</span>
+          <i class="rule"></i>
+        </div>
+        <div class="grid-notes" id="documents"></div>
+      </div>
+    </main>
+  </div>
 
   <nav class="dock">
     <a href="index.html">Home</a>

@@ -7,22 +7,59 @@
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
-  <header class="bar">
-    <span class="brand">PocketBase</span>
-    <nav>
-      <button class="link" id="signout">Log out</button>
-    </nav>
-  </header>
+  <div class="app">
+    <aside class="sidebar" id="sidebar"></aside>
 
-  <main class="page">
-    <!-- The + is the first thing on the page, deliberately. -->
-    <button class="big-plus" id="new-idea" aria-label="New idea">+</button>
+    <main class="main">
+      <header class="board-head">
+        <div>
+          <h1 class="board-title" id="greeting">Home</h1>
+          <p class="board-sub" id="today"></p>
+        </div>
+        <div class="board-actions">
+          <button class="btn btn--primary" id="new-idea">+ New idea</button>
+        </div>
+      </header>
 
-    <p class="inbox-nudge" id="inbox"></p>
+      <div class="stats" id="stats"></div>
 
-    <h2 class="section">Where you left off</h2>
-    <ul class="file-list" id="recent"></ul>
-  </main>
+      <div class="home-grid">
+        <!-- A note mid-composition, so the entry point teaches the interaction. -->
+        <button class="capture-card span-8" id="capture-card">
+          <span class="capture-lines"><span class="capture-prompt">Jot an idea&hellip;</span></span>
+          <span class="capture-foot">
+            <span>Capture now, file it after</span>
+            <span><span class="kbd">Ctrl</span> + <span class="kbd">&#9166;</span></span>
+          </span>
+        </button>
+
+        <section class="panel span-4">
+          <div class="panel-head">
+            <span class="caption">Inbox</span>
+            <span class="badge" id="inbox-count">0</span>
+            <i class="rule"></i>
+          </div>
+          <div id="inbox"></div>
+        </section>
+
+        <section class="panel span-8">
+          <div class="panel-head">
+            <span class="caption">Where you left off</span>
+            <i class="rule"></i>
+          </div>
+          <div id="recent"></div>
+        </section>
+
+        <section class="panel span-4">
+          <div class="panel-head">
+            <span class="caption">Gathering dust</span>
+            <i class="rule"></i>
+          </div>
+          <div id="dust"></div>
+        </section>
+      </div>
+    </main>
+  </div>
 
   <nav class="dock">
     <a href="index.html" class="active">Home</a>
