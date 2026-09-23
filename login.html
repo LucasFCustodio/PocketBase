@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Log in — PocketBase</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body class="centered">
+  <main class="card">
+    <h1 class="brand">PocketBase</h1>
+    <p class="tagline">Somewhere to put the idea before it disappears.</p>
+
+    <form id="auth-form">
+      <label for="email">Email</label>
+      <input id="email" type="email" autocomplete="username" required />
+
+      <label for="password">Password</label>
+      <input id="password" type="password" autocomplete="current-password" required />
+
+      <button class="primary" id="auth-submit" type="submit">Log in</button>
+    </form>
+
+    <p class="auth-message" id="auth-message"></p>
+    <button class="link" id="auth-toggle" type="button"></button>
+  </main>
+
+  <script type="module" src="js/auth.js"></script>
+</body>
+</html>
