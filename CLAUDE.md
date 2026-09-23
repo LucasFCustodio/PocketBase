@@ -6,10 +6,6 @@ Guidance for Claude Code when working in this repository.
 
 **PocketBase** is a web app for capturing and organizing project ideas.
 
-The problem it solves: good ideas arrive at random moments and get lost in notes
-apps, chat threads, and scraps of paper. PocketBase gives them one home, filed
-under the project they belong to, so they can be found again.
-
 Two ways in:
 
 1. **Manual capture** — open the app, type the idea with a short elaboration,
@@ -20,15 +16,49 @@ Two ways in:
 
 Build (1) first and build it well. (2) is additive and must not complicate (1).
 
+## Who it is for
+
+Ideators, solo developers, and small teams building their own projects — the
+person who is simultaneously the engineer, the marketer, and the strategist for
+the thing they are making.
+
+That person has ideas across every front of the project at once: a feature, a
+landing-page headline, a pricing change, an SEO angle, a name for the next
+release. The ideas arrive at random moments and land in notes apps, chat
+threads, and scraps of paper, where they are never found again. Worse, the
+*areas* themselves blur together — it is hard to see that marketing has been
+neglected for a month while features pile up.
+
+PocketBase solves both halves of that:
+
+- **Organize the areas** a project needs attention on. The directory tree is
+  not filing for its own sake; it is a map of the fronts the builder has to
+  cover, visible at a glance.
+- **Organize the ideas** within each area, so a thought about pricing lands
+  next to the other pricing thoughts and can be picked up when that area gets
+  worked on.
+
+Design decisions should favor this user: someone with limited time, switching
+context constantly, who will abandon the tool if filing an idea takes longer
+than having it.
+
 ## Scope discipline
 
 This is a course project (Engineering Design 2) and is meant to stay small. It
 should do one thing well: capture an idea and file it where it can be found.
 
 Before adding anything, ask whether it serves capture or retrieval. If it does
-not, leave it out. Explicitly **not** in scope: sharing/collaboration, teams,
-comments, notifications, tags beyond what filtering needs, rich text editors,
-mobile apps, offline sync, file uploads, search ranking, analytics.
+not, leave it out.
+
+Small teams are part of the intended audience, but **the app is single-user for
+now** and that is a deliberate simplification, not an oversight. Explicitly
+**not** in scope: sharing, collaboration, team accounts, permissions,
+multi-device sync, real-time updates, comments, notifications, tags beyond what
+filtering needs, rich text editors, mobile apps, offline mode, file uploads,
+search ranking, analytics.
+
+Do not build hooks, abstractions, or schema "in preparation" for sharing or
+syncing. If those ever arrive, they will be designed then.
 
 Prefer boring, obvious solutions over clever ones. Prefer fewer files. Prefer
 plain functions over abstractions that have exactly one caller.
