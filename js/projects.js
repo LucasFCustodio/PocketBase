@@ -5,6 +5,7 @@
 import { requireUser, signOut } from './supabase.js';
 import {
   listProjectsWithCounts, createProject, loadTree, getFile, filesByDirectory,
+  directoryPath,
 } from './data.js';
 import { openFile } from './capture.js';
 
@@ -16,6 +17,8 @@ const LAST_PROJECT_KEY = 'pocketbase.lastProject';
 let projects = [];
 let projectId = null;
 let tree = [];
+let filesByDir = new Map();
+let currentDirId = null; // null = the project's own level
 
 const created = (iso) => new Date(iso).toLocaleDateString(undefined, {
   day: 'numeric', month: 'short', year: 'numeric',
@@ -130,64 +133,111 @@ async function addProject() {
   await select(id);
 }
 
-// --- the tree ---------------------------------------------------------------
+// --- browsing one level at a time -------------------------------------------
+//
+// Two rows: the folders inside the current level, then the documents inside it.
+// Clicking a folder descends; the breadcrumb climbs back out. One level at a
+// time keeps the page the same height no matter how deep the tree goes.
 
 async function select(id) {
   projectId = id;
+  currentDirId = null;
   localStorage.setItem(LAST_PROJECT_KEY, id);
   tree = await loadTree(id);
   renderRail();
-  await renderTree();
+  await loadLevel();
 }
 
-async function renderTree() {
-  const root = document.querySelector('#tree');
-  const files = await filesByDirectory(projectId);
+async function loadLevel() {
+  filesByDir = await filesByDirectory(projectId);
+  renderLevel();
+}
 
-  const inbox = tree.find((d) => d.is_inbox);
-  const tops = tree.filter((d) => d.parent_id === null && !d.is_inbox);
+function renderLevel() {
+  renderCrumbs();
+  renderFolders();
+  renderDocuments();
+}
 
-  // A file whose directory was deleted has directory_id null. It must still be
-  // reachable — an idea that exists but cannot be seen is the one outcome this
-  // app is built to prevent. Show it alongside the unfiled ones.
-  const orphans = files.get('none') ?? [];
-  if (orphans.length && inbox) {
-    files.set(inbox.id, (files.get(inbox.id) ?? []).concat(orphans));
-  }
-
+function renderCrumbs() {
   const project = projects.find((p) => p.id === projectId);
-  const branches = (inbox ? [inbox] : []).concat(tops);
+  const path = directoryPath(tree, currentDirId);
 
-  // The project is the root of the chart; everything hangs off it.
-  root.innerHTML =
-    '<ul><li>' +
-    '<span class="box root">' + esc(project?.name ?? 'Project') + '</span>' +
-    (branches.length
-      ? '<ul>' + branches.map((b) => branchHtml(b, files)).join('') + '</ul>'
-      : '') +
-    '</li></ul>';
+  const parts = ['<button class="crumb" data-id="">' +
+    esc(project?.name ?? 'Project') + '</button>'];
 
-  root.querySelectorAll('.box.file').forEach((box) => {
-    box.addEventListener('click', () => open(box.dataset.id));
+  path.forEach((d, i) => {
+    const last = i === path.length - 1;
+    parts.push(last
+      ? '<span class="crumb current">' + esc(d.name) + '</span>'
+      : '<button class="crumb" data-id="' + esc(d.id) + '">' + esc(d.name) + '</button>');
+  });
+
+  const crumbs = document.querySelector('#crumbs');
+  crumbs.innerHTML = parts.join('<span class="crumb-sep">&rsaquo;</span>');
+  crumbs.querySelectorAll('.crumb[data-id]').forEach((b) => {
+    b.addEventListener('click', () => {
+      currentDirId = b.dataset.id || null;
+      renderLevel();
+    });
   });
 }
 
-// One directory and everything under it. Files come before sub-directories so
-// that the ideas actually filed here read first.
-function branchHtml(node, files) {
-  const kids = tree.filter((d) => d.parent_id === node.id);
-  const mine = files.get(node.id) ?? [];
+function renderFolders() {
+  const row = document.querySelector('#folders');
+  const folders = tree.filter((d) => d.parent_id === currentDirId);
 
-  const children = mine
-    .map((f) => '<li><button class="box file" data-id="' + esc(f.id) + '" title="' +
-      esc(f.title) + '">' + esc(f.title) + '</button></li>')
-    .concat(kids.map((kid) => branchHtml(kid, files)));
+  if (!folders.length) {
+    row.innerHTML = '<p class="row-empty">No folders here.</p>';
+    return;
+  }
 
-  return '<li>' +
-    '<span class="box dir' + (node.is_inbox ? ' inbox' : '') + '">' +
-    esc(node.name) + '</span>' +
-    (children.length ? '<ul>' + children.join('') + '</ul>' : '') +
-    '</li>';
+  row.innerHTML = folders.map((d) => {
+    const subs = tree.filter((k) => k.parent_id === d.id).length;
+    const docs = (filesByDir.get(d.id) ?? []).length;
+    return '<button class="folder-card' + (d.is_inbox ? ' inbox' : '') +
+      '" data-id="' + esc(d.id) + '">' +
+      '<span class="card-title">' + esc(d.name) + '</span>' +
+      '<span class="card-meta">' + summarise(subs, docs) + '</span>' +
+      '</button>';
+  }).join('');
+
+  row.querySelectorAll('.folder-card').forEach((card) => {
+    card.addEventListener('click', () => {
+      currentDirId = card.dataset.id;
+      renderLevel();
+    });
+  });
+}
+
+function summarise(folders, docs) {
+  if (!folders && !docs) return 'Empty';
+  const bits = [];
+  if (folders) bits.push(folders + (folders === 1 ? ' folder' : ' folders'));
+  if (docs) bits.push(docs + (docs === 1 ? ' doc' : ' docs'));
+  return bits.join(' &middot; ');
+}
+
+function renderDocuments() {
+  const row = document.querySelector('#documents');
+  // Files sitting at the project's own level have no directory. That also
+  // catches any orphaned by a deleted folder, so nothing becomes unreachable.
+  const docs = filesByDir.get(currentDirId ?? 'none') ?? [];
+
+  if (!docs.length) {
+    row.innerHTML = '<p class="row-empty">No documents here.</p>';
+    return;
+  }
+
+  row.innerHTML = docs.map((f) =>
+    '<button class="doc-card" data-id="' + esc(f.id) + '">' +
+    '<span class="card-title">' + esc(f.title) + '</span>' +
+    '<span class="card-meta">' + esc(created(f.updated_at)) + '</span>' +
+    '</button>').join('');
+
+  row.querySelectorAll('.doc-card').forEach((card) => {
+    card.addEventListener('click', () => open(card.dataset.id));
+  });
 }
 
 async function open(fileId) {
@@ -199,7 +249,7 @@ async function open(fileId) {
 async function refresh() {
   projects = await listProjectsWithCounts();
   renderRail();
-  await renderTree();
+  await loadLevel();
 }
 
 // --- boot -------------------------------------------------------------------
@@ -209,13 +259,12 @@ async function main() {
 
   document.querySelector('#signout').addEventListener('click', signOut);
   enableDragScroll(document.querySelector('#rail'));
-  enableDragScroll(document.querySelector('#tree-scroll'));
 
   projects = await listProjectsWithCounts();
   if (!projects.length) {
     renderRail();
-    document.querySelector('#tree').innerHTML =
-      '<p class="empty">No projects yet.</p>';
+    document.querySelector('#folders').innerHTML =
+      '<p class="row-empty">No projects yet.</p>';
     return;
   }
 

@@ -176,132 +176,84 @@ button { font: inherit; cursor: pointer; }
 .card-new .plus { font-size: 22px; line-height: 1; }
 .card-new .project-name { font-weight: 500; color: var(--muted); }
 
-/* The hierarchy, drawn as a top-down org chart: the project at the root, with
-   connector lines fanning down to each directory and on to the files inside.
-   Pure CSS — the lines are ::before/::after borders on each <li>. */
+/* Browsing one level at a time: a breadcrumb, a row of folders, a row of
+   documents. Replaces the old org chart, which grew unusably wide. */
 
-.tree-scroll {
-  overflow-x: auto;
-  margin: 0 -20px;
-  padding: 0 20px 14px;
-  cursor: grab;
-  user-select: none;
-  scrollbar-width: thin;
-  scrollbar-color: var(--line) transparent;
-}
-.tree-scroll.dragging { cursor: grabbing; }
-.tree-scroll::-webkit-scrollbar { height: 6px; }
-.tree-scroll::-webkit-scrollbar-thumb { background: var(--line); border-radius: 3px; }
-
-.tree { display: inline-block; min-width: 100%; padding-top: 6px; }
-
-.tree ul {
-  position: relative;
+.crumbs {
   display: flex;
-  justify-content: center;
-  padding: 22px 0 0;
-  margin: 0;
-  list-style: none;
-}
-.tree li {
-  position: relative;
-  list-style: none;
-  padding: 22px 7px 0;
-  text-align: center;
-}
-
-/* the bracket above each child: half a horizontal line, plus a drop into it */
-.tree li::before,
-.tree li::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  right: 50%;
-  width: 50%;
-  height: 22px;
-  border-top: 1px solid var(--line);
-}
-.tree li::after {
-  right: auto;
-  left: 50%;
-  border-left: 1px solid var(--line);
-}
-/* an only child needs no bracket, just the stem from its parent */
-.tree li:only-child { padding-top: 22px; }
-.tree li:only-child::before,
-.tree li:only-child::after { display: none; }
-/* trim the outer halves so the bracket stops at the first and last child */
-.tree li:first-child::before,
-.tree li:last-child::after { border: 0 none; }
-.tree li:last-child::before { border-right: 1px solid var(--line); }
-
-/* the stem dropping from a parent box into its row of children */
-.tree ul ul::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 50%;
-  width: 0;
-  height: 22px;
-  border-left: 1px solid var(--line);
-}
-
-/* the root has nothing above it */
-.tree > ul { padding-top: 0; }
-.tree > ul > li { padding-top: 0; }
-.tree > ul > li::before,
-.tree > ul > li::after { display: none; }
-
-/* --- the boxes --- */
-
-.box {
-  display: inline-block;
-  min-width: 92px;
-  max-width: 168px;
-  padding: 9px 12px;
-  border-radius: 9px;
-  font-size: 12px;
-  line-height: 1.35;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  vertical-align: middle;
-}
-
-.box.root {
-  border: 1px solid var(--accent);
-  background: var(--accent-soft);
-  color: var(--text);
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 26px;
   font-size: 13px;
-  font-weight: 600;
 }
-
-/* directories: dashed */
-.box.dir {
-  border: 1px dashed var(--line);
+.crumb {
+  background: none;
+  border: 0;
+  padding: 2px 0;
   color: var(--muted);
+  font: inherit;
+  font-size: 13px;
+  transition: color 120ms;
+}
+button.crumb:hover { color: var(--accent); text-decoration: underline; }
+.crumb.current { color: var(--text); font-weight: 600; }
+.crumb-sep { color: var(--muted); opacity: 0.5; }
+
+.row-label {
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  margin: 22px 0 10px;
 }
-.box.dir.inbox { border-color: var(--accent); color: var(--accent); }
 
-/* files: outlined, clickable, and they light up on hover */
-.box.file {
-  border: 1px solid var(--line);
-  background: transparent;
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.folder-card,
+.doc-card {
+  flex: 0 1 190px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: left;
+  border-radius: 11px;
   color: var(--text);
-  font: inherit;
-  font-size: 12px;
-  cursor: pointer;
-  transition: border-color 120ms, background 120ms, color 120ms;
+  padding: 14px;
+  transition: border-color 120ms, background 120ms;
 }
-.box.file:hover {
-  border-color: var(--accent);
-  background: var(--accent-soft);
-  color: #fff;
+
+/* folders are dashed, documents are solid — the same language the capture
+   flow uses, so a folder never reads as something you can open and edit */
+.folder-card {
+  border: 1px dashed var(--line);
+  background: transparent;
 }
+.folder-card:hover { border-color: var(--accent); background: var(--accent-soft); }
+.folder-card.inbox { border-color: var(--accent); }
+
+.doc-card {
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+.doc-card:hover { border-color: var(--accent); background: var(--accent-soft); }
+
+.card-title {
+  font-weight: 600;
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.folder-card .card-title { font-size: 13px; }
+.card-meta { color: var(--muted); font-size: 12px; }
+
+.row-empty { color: var(--muted); font-size: 13px; margin: 0; opacity: 0.7; }
 
 /* --- login ---------------------------------------------------------------- */
 
