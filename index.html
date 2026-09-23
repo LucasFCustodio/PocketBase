@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>PocketBase</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <header class="bar">
+    <span class="brand">PocketBase</span>
+    <nav>
+      <button class="link" id="signout">Log out</button>
+    </nav>
+  </header>
+
+  <main class="page">
+    <!-- The + is the first thing on the page, deliberately. -->
+    <button class="big-plus" id="new-idea" aria-label="New idea">+</button>
+
+    <p class="inbox-nudge" id="inbox"></p>
+
+    <h2 class="section">Where you left off</h2>
+    <ul class="file-list" id="recent"></ul>
+  </main>
+
+  <nav class="dock">
+    <a href="index.html" class="active">Home</a>
+    <a href="projects.html">Projects</a>
+  </nav>
+
+  <script type="module" src="js/home.js"></script>
+</body>
+</html>
