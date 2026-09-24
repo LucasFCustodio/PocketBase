@@ -120,7 +120,7 @@ a { color: inherit; }
 
 .app { display: grid; grid-template-columns: 248px 1fr; min-height: 100vh; }
 
-.main { padding: var(--s5) var(--s6) var(--s7); max-width: 1280px; min-width: 0; }
+.main { padding: var(--s5) var(--s6) var(--s7); min-width: 0; }
 
 .board-head {
   display: flex;
@@ -471,7 +471,7 @@ a { color: inherit; }
   color: var(--text-3);
 }
 
-.home-grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: var(--s4); align-items: start; }
+.home-grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: var(--s4); align-items: stretch; }
 .span-8 { grid-column: span 8; }
 .span-4 { grid-column: span 4; }
 .span-12 { grid-column: 1 / -1; }
