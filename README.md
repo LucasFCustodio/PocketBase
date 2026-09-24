@@ -3,7 +3,7 @@
 A place to put an idea before it disappears.
 
 **Live app:** <https://symphonious-arithmetic-c33539.netlify.app/>
-**Demo video (YouTube, unlisted):** [PLACEHOLDER — video link coming soon](https://www.youtube.com/)
+**Demo video (YouTube, unlisted):** https://youtu.be/iLyntLATUMk
 
 ## What it does
 
