@@ -136,6 +136,11 @@ export async function updateFile(id, patch) {
   return data;
 }
 
+export async function deleteFile(id) {
+  const { error } = await supabase.from('files').delete().eq('id', id);
+  if (error) throw error;
+}
+
 export async function recentFiles(limit = 6) {
   const { data, error } = await supabase
     .from('files')
@@ -218,7 +223,7 @@ export async function inboxFiles(limit = 6) {
   return data;
 }
 
-// Four numbers for the stat strip. Counts only — no rows come back.
+// Three numbers for the stat strip. Counts only — no rows come back.
 export async function dashboardStats() {
   const count = async (table, build = (q) => q) => {
     const { count: n, error } = await build(
@@ -227,11 +232,10 @@ export async function dashboardStats() {
     return n ?? 0;
   };
 
-  const [projects, folders, ideas, unfiled] = await Promise.all([
+  const [projects, ideas, unfiled] = await Promise.all([
     count('projects'),
-    count('directories', (q) => q.eq('is_inbox', false)),
     count('files'),
     inboxCount(),
   ]);
-  return { projects, folders, ideas, unfiled };
+  return { projects, ideas, unfiled };
 }

@@ -3,10 +3,10 @@
 
 import { requireUser } from './supabase.js';
 import {
-  recentFiles, inboxCount, inboxFiles, dashboardStats,
+  recentFiles, inboxCount, inboxFiles, dashboardStats, deleteFile, getFile,
   listProjectsWithCounts, loadTree, filesByDirectory,
 } from './data.js';
-import { openCapture } from './capture.js';
+import { openCapture, refile, DRAFT_KEY } from './capture.js';
 import { renderSidebar, tintOf } from './sidebar.js';
 
 const LAST_PROJECT_KEY = 'pocketbase.lastProject';
@@ -49,8 +49,7 @@ function renderHeader() {
 async function renderStats() {
   const s = await dashboardStats();
   document.querySelector('#stats').innerHTML = [
-    ['Projects', s.projects], ['Folders', s.folders],
-    ['Ideas', s.ideas], ['Unfiled', s.unfiled],
+    ['Projects', s.projects], ['Ideas', s.ideas], ['Unfiled', s.unfiled],
   ].map(([label, n]) =>
     '<div class="stat"><div class="stat-num">' + n + '</div>' +
     '<div class="stat-label">' + label + '</div></div>').join('');
@@ -64,10 +63,12 @@ async function renderInbox() {
 
   document.querySelector('#inbox').innerHTML = files.length
     ? '<div class="row-list">' + files.map((f) =>
+        '<div class="row-slot">' +
         '<a class="row-item" href="projects.html#file-' + esc(f.id) + '">' +
         '<span class="row-main"><span class="row-title">' + esc(f.title) + '</span>' +
         '<span class="row-sub">' + esc(f.projects?.name ?? '') + '</span></span>' +
-        '<span class="row-time">' + ago(f.updated_at) + '</span></a>').join('') + '</div>'
+        '<span class="row-time">' + ago(f.updated_at) + '</span></a>' +
+        refileButton(f) + '</div>').join('') + '</div>'
     : empty('&#10003;', 'Inbox zero', 'Everything is filed.');
 }
 
@@ -77,12 +78,20 @@ async function renderRecent() {
   document.querySelector('#recent').innerHTML = files.length
     ? '<div class="grid-notes">' + files.map((f) => {
         const path = [f.projects?.name, f.directories?.name].filter(Boolean).join(' › ');
-        return '<a class="card-note" data-tint="' + tintOf(f.project_id) + '" ' +
+        // The trash sits beside the link, not inside it: a button nested in an
+        // anchor is invalid, and the slot is what positions it over the corner.
+        return '<div class="note-slot">' +
+          '<a class="card-note" data-tint="' + tintOf(f.project_id) + '" ' +
           'href="projects.html#file-' + esc(f.id) + '">' +
           '<span class="path-chip">' + esc(path) + '</span>' +
           '<span class="card-title">' + esc(f.title) + '</span>' +
           '<span class="excerpt">' + esc(excerpt(f.body, f.title)) + '</span>' +
-          '<footer>' + ago(f.updated_at) + '</footer></a>';
+          '<footer>' + ago(f.updated_at) + '</footer></a>' +
+          '<span class="card-tools">' + refileButton(f) +
+          '<button class="card-tool card-tool--danger" data-act="delete" ' +
+          'data-id="' + esc(f.id) + '" data-title="' + esc(f.title) + '" ' +
+          'title="Delete idea" aria-label="Delete ' + esc(f.title) + '">' +
+          '&#128465;</button></span></div>';
       }).join('') + '</div>'
     : empty('&#9998;', 'Nothing yet', 'Write the first thing on your mind.');
 }
@@ -152,15 +161,117 @@ async function refresh() {
   await Promise.all([renderStats(), renderInbox(), renderRecent(), renderDust()]);
 }
 
+// --- inline capture ----------------------------------------------------------
+
+// The card on Home is the writing surface. Enter behaves like any textarea;
+// filing is a deliberate act, either the button or Ctrl+Enter.
+function wireCapture() {
+  const box = document.querySelector('#capture-input');
+
+  // A textarea will not size itself; without this the card never grows past
+  // its first line and long ideas scroll inside a sliver. The floor lives in
+  // CSS as min-height, which wins over anything smaller set here.
+  const grow = () => {
+    box.style.height = 'auto';
+    box.style.height = box.scrollHeight + 'px';
+  };
+
+  const sync = () => { box.value = localStorage.getItem(DRAFT_KEY) ?? ''; grow(); };
+
+  const focus = () => {
+    box.scrollIntoView({ block: 'nearest' });
+    box.focus();
+    box.setSelectionRange(box.value.length, box.value.length);
+  };
+
+  let timer;
+  const evolve = () => {
+    clearTimeout(timer);
+    const body = box.value.trim();
+    if (!body) return focus();
+    // Hold the draft until the insert lands, so a failed save loses nothing.
+    localStorage.setItem(DRAFT_KEY, body);
+    openCapture({ body, onClose: async () => { sync(); await refresh(); } });
+  };
+
+  sync();
+
+  box.addEventListener('input', () => {
+    grow();
+    clearTimeout(timer);
+    // The only window in which the idea is not yet in the database.
+    timer = setTimeout(() => localStorage.setItem(DRAFT_KEY, box.value), 300);
+  });
+
+  box.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); evolve(); }
+  });
+
+  return { evolve, focus };
+}
+
+// The gear re-opens the filing questions. Both panels use the same button, so
+// an idea can be moved from wherever it happens to be on screen.
+const refileButton = (f) =>
+  '<button class="card-tool" data-act="refile" data-id="' + esc(f.id) + '" ' +
+  'title="Move to another folder" aria-label="Move ' + esc(f.title) + '">' +
+  '&#9881;</button>';
+
+// One listener per panel, on the panel itself, so it outlives each re-render.
+function wireCardTools() {
+  const onClick = (e) => {
+    const button = e.target.closest('.card-tool');
+    if (!button) return;
+    e.preventDefault();
+    return button.dataset.act === 'delete' ? remove(button) : move(button);
+  };
+  document.querySelector('#recent').addEventListener('click', onClick);
+  document.querySelector('#inbox').addEventListener('click', onClick);
+}
+
+async function move(button) {
+  button.disabled = true;
+  try {
+    // Read it fresh: the card was rendered from a list that may be stale.
+    refile({ file: await getFile(button.dataset.id), onClose: refresh });
+  } catch (err) {
+    console.error('could not open that idea', err);
+    alert('Could not open that idea. Check your connection and try again.');
+  } finally {
+    button.disabled = false;
+  }
+}
+
+// Deleting is the only irreversible thing in the app, so it asks first.
+async function remove(button) {
+  if (!confirm('Delete "' + button.dataset.title + '"? This cannot be undone.')) return;
+
+  button.disabled = true;
+  try {
+    await deleteFile(button.dataset.id);
+    await refresh();
+  } catch (err) {
+    console.error('could not delete idea', err);
+    button.disabled = false;
+    alert('Could not delete. Check your connection and try again.');
+  }
+}
+
 async function main() {
   if (!(await requireUser())) return;
 
-  const capture = () => openCapture({ onClose: refresh });
-  document.querySelector('#new-idea').addEventListener('click', capture);
-  document.querySelector('#capture-card').addEventListener('click', capture);
+  const inline = wireCapture();
+  wireCardTools();
 
-  await renderSidebar({ active: 'home', onNewIdea: capture });
+  // There is a box on this page already — "New idea" just puts the cursor in it.
+  const jot = () => inline.focus();
+
+  document.querySelector('#evolve').addEventListener('click', inline.evolve);
+  document.querySelector('#new-idea').addEventListener('click', jot);
+
+  await renderSidebar({ active: 'home', onNewIdea: jot });
   await refresh();
+  inline.focus();
 }
 
 main();

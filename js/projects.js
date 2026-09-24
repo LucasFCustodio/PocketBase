@@ -10,7 +10,7 @@ import {
   filesByDirectory, directoryPath,
 } from './data.js';
 import { openCapture, openFile } from './capture.js';
-import { renderSidebar, tintOf } from './sidebar.js';
+import { renderSidebar, setActive, tintOf } from './sidebar.js';
 
 const LAST_PROJECT_KEY = 'pocketbase.lastProject';
 
@@ -108,6 +108,7 @@ const newTile = (id, label) =>
 // --- root: all projects ------------------------------------------------------
 
 function renderProjectBoard() {
+  setActive('projects');
   $('#projects-section').hidden = false;
   $('#folders-section').hidden = true;
   $('#docs-section').hidden = true;
@@ -136,6 +137,9 @@ function renderProjectBoard() {
 // --- inside a project --------------------------------------------------------
 
 function renderLevel() {
+  // Standing in a project's inbox is "Inbox", not "Projects".
+  setActive(tree.find((d) => d.id === currentDirId)?.is_inbox ? 'inbox' : 'projects');
+
   $('#projects-section').hidden = true;
   $('#folders-section').hidden = false;
   $('#docs-section').hidden = false;
@@ -173,7 +177,6 @@ function renderLevel() {
     });
   });
 
-  $('#folders-count').textContent = folders.length;
   $('#folders').innerHTML = folders.map((d) => {
     const subs = tree.filter((k) => k.parent_id === d.id);
     const mine = filesByDir.get(d.id) ?? [];

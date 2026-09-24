@@ -14,6 +14,14 @@ export function tintOf(id) {
   return (sum % 6) + 1;
 }
 
+// Projects navigates without reloading, so which link is lit has to be able to
+// change after the sidebar is drawn.
+export function setActive(page) {
+  document.querySelectorAll('#sidebar .side-link[data-page]').forEach((link) => {
+    link.classList.toggle('is-active', link.dataset.page === page);
+  });
+}
+
 export async function renderSidebar({ active, onNewIdea }) {
   const el = document.querySelector('#sidebar');
   if (!el) return;
@@ -33,9 +41,11 @@ export async function renderSidebar({ active, onNewIdea }) {
     '<button class="btn btn--primary btn--block" id="side-new">+ New idea</button>',
 
     '<nav class="side-group">',
-    '  <a class="side-link' + on('home') + '" href="index.html">Home</a>',
-    '  <a class="side-link' + on('projects') + '" href="projects.html">Projects</a>',
-    '  <a class="side-link" href="projects.html#inbox"><span class="grow">Inbox</span>',
+    '  <a class="side-link' + on('home') + '" data-page="home" href="index.html">Home</a>',
+    '  <a class="side-link' + on('projects') + '" data-page="projects" ' +
+    '     href="projects.html">Projects</a>',
+    '  <a class="side-link' + on('inbox') + '" data-page="inbox" ' +
+    '     href="projects.html#inbox"><span class="grow">Inbox</span>',
     unfiled ? '<span class="badge badge--accent">' + unfiled + '</span>' : '',
     '  </a>',
     '</nav>',

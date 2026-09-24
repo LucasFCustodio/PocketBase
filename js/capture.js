@@ -10,7 +10,7 @@ import {
   createDirectory, createFile, updateFile, deriveTitle,
 } from './data.js';
 
-const DRAFT_KEY = 'pocketbase.draft';
+export const DRAFT_KEY = 'pocketbase.draft';
 const LAST_PROJECT_KEY = 'pocketbase.lastProject';
 const MAX_CHIP_ROWS = 3; // the wizard never drills deeper than this
 
@@ -36,11 +36,70 @@ export function openCapture(options = {}) {
   };
 
   mount();
+
+  // Handed text, there is nothing left to type: save it and open on the first
+  // question. Home works this way — its card is the writing surface, so the
+  // overlay must never show a second box on top of it.
+  if (options.body) return startFiling(options.body);
+
   renderWrite();
 
   // Load what the next step needs while the user is still typing, so that
   // "Clarify it" never waits on the network.
   prefetch();
+}
+
+async function startFiling(body) {
+  state.step = 'saving';
+  inner().innerHTML = '<h2 class="question">Saving&hellip;</h2>';
+  try {
+    state.projects = await listProjects();
+    state.projectId = pickActiveProject(state.projects);
+    if (!state.projectId) {
+      state.projectId = await createProject('My First Project');
+      state.projects = await listProjects();
+    }
+    state.tree = await loadTree(state.projectId);
+
+    state.file = await createFile({
+      projectId: state.projectId,
+      directoryId: inboxOf(state.tree)?.id ?? null,
+      body,
+    });
+    localStorage.removeItem(DRAFT_KEY);
+    renderProjectStep();
+  } catch (err) {
+    console.error('could not save idea', err);
+    inner().innerHTML = '';
+    showError('Could not save. Check your connection and try again.');
+  }
+}
+
+// Re-ask the filing questions for an idea that already exists. Same chips as
+// capture, but the row is there from the start so every answer is an update.
+export async function refile({ file, onClose: cb }) {
+  onClose = cb ?? null;
+  state = {
+    step: 'project',
+    file,
+    projects: [],
+    projectId: file.project_id,
+    tree: [],
+    row: 0,
+    parentId: null,
+  };
+
+  mount();
+  inner().innerHTML = '<h2 class="question">Loading&hellip;</h2>';
+  try {
+    state.projects = await listProjects();
+    state.tree = await loadTree(state.projectId);
+    renderProjectStep();
+  } catch (err) {
+    console.error('could not load the filing questions', err);
+    inner().innerHTML = '';
+    showError('Could not load your projects. Check your connection and try again.');
+  }
 }
 
 // Open an existing file straight into the editor, skipping the wizard. Used by
@@ -201,8 +260,10 @@ function renderDirectoryStep() {
   state.step = 'directory';
   const options = childrenOf(state.tree, state.parentId);
 
-  // Nothing left to ask, or we have hit the cap: file it and open.
-  if (!options.length || state.row >= MAX_CHIP_ROWS) return renderOpen();
+  // Nothing left to ask, or we have hit the cap. The row was updated on the way
+  // in, so the idea is already where it belongs — close instead of reopening
+  // the text the user just wrote.
+  if (!options.length || state.row >= MAX_CHIP_ROWS) return closeCapture();
 
   renderChips({
     question: state.row === 0 ? 'Which part of the project?' : 'Anywhere more specific?',
@@ -255,7 +316,7 @@ function renderChips({ question, chips, newLabel, onPick, onNew, canFileHere = f
   inner().querySelectorAll('.chip[data-id]').forEach((b) => {
     b.addEventListener('click', () => guard(() => onPick(b.dataset.id)));
   });
-  inner().querySelector('#file-here')?.addEventListener('click', renderOpen);
+  inner().querySelector('#file-here')?.addEventListener('click', closeCapture);
   inner().querySelector('#chip-new').addEventListener('click', () => promptNew(newLabel, onNew));
 }
 
