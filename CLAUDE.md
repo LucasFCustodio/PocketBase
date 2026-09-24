@@ -140,10 +140,11 @@ secrets (service-role key, Pocket AI key).
 
 Supabase Auth with email + password.
 
-- **No email integration.** No confirmation emails, no magic links, no password
-  reset flow. The user chooses an email and password at registration and uses
-  the same pair to log in afterward. Email confirmation must be disabled in the
-  Supabase project settings.
+- **Email confirmation stays ON** (Supabase's built-in confirmation email).
+  It was turned off once and login broke, so it was deliberately switched back
+  on. Do not suggest disabling it. Registering returns no session; the user
+  clicks the emailed link (which goes to the Site URL), then logs in.
+- No other email features: no magic links, no password reset flow.
 - Register, log in, log out. That is the whole surface.
 - Every project, directory, and file row carries a `user_id`. RLS policies
   restrict all reads and writes to `auth.uid() = user_id`. Do not rely on the
@@ -202,8 +203,9 @@ The frontend deploys as static files to Netlify. There is no build step; the
 publish directory is the repository root. Deploy sparingly — only when the
 project is finished — to stay inside Netlify's free tier.
 
-- Set Supabase **Authentication → URL Configuration → Site URL** to the
-  Netlify URL.
+- Live at <https://symphonious-arithmetic-c33539.netlify.app/>. Supabase
+  **Authentication → URL Configuration → Site URL** is set to it (the
+  confirmation email links there).
 - Supabase pauses free projects after about a week of inactivity. Use the app
   shortly before submitting and around grading time; restore from the Supabase
   dashboard if it paused.

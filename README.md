@@ -2,7 +2,7 @@
 
 A place to put an idea before it disappears.
 
-**Live app:** _coming soon — link will be added after deployment to Netlify_
+**Live app:** <https://symphonious-arithmetic-c33539.netlify.app/>
 **Demo video (YouTube, unlisted):** [PLACEHOLDER — video link coming soon](https://www.youtube.com/)
 
 ## What it does
@@ -23,7 +23,8 @@ finish typing, so it's kept even if you stop partway through filing.
 
 ### Features
 
-- **Register, log in, log out** with email and password. Each account only
+- **Register, log in, log out** with email and password. New accounts confirm
+  their email address once, through a link Supabase sends. Each account only
   sees its own data.
 - **Capture an idea from Home.** Type into the card and press
   `Ctrl + Enter` (or click **Evolve my Ideas**).
@@ -103,9 +104,9 @@ cd PocketBase
 **2. Create a Supabase project** at [supabase.com](https://supabase.com). The
 free tier is enough.
 
-**3. Turn off email confirmation.** In *Authentication → Sign In / Providers →
-Email*, turn off "Confirm email". The app doesn't send emails, so
-registration has to log the user in immediately.
+**3. Check email confirmation.** In *Authentication → Sign In / Providers →
+Email*, leave "Confirm email" on. Supabase sends each new user a
+confirmation link, and they can log in after clicking it.
 
 **4. Create the database.** Open the Supabase **SQL Editor**, paste the whole
 of `supabase/setup.sql`, and run it. It creates the tables, indexes,
@@ -150,7 +151,8 @@ over HTTP because browsers won't load ES modules from `file://`.
 2. Leave the build command empty. The publish directory is the repository
    root.
 3. In Supabase, go to *Authentication → URL Configuration* and set the **Site
-   URL** to your Netlify address.
+   URL** to your Netlify address. The confirmation link in sign-up emails
+   sends users there.
 
 Note: Supabase pauses free projects after about a week with no activity. If the
 live app can't log in, restore the project from the Supabase dashboard.

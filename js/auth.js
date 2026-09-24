@@ -1,6 +1,6 @@
-// Login and registration. Email + password only — no confirmation mail, no
-// magic links, no reset flow. Email confirmation must be OFF in the Supabase
-// project settings or registration will not return a session.
+// Login and registration. Email + password only — no magic links, no reset
+// flow. Email confirmation is ON in Supabase, so registering returns no session
+// until the user clicks the link in the confirmation email.
 
 import { supabase, currentUser } from './supabase.js';
 
@@ -52,8 +52,10 @@ form.addEventListener('submit', async (e) => {
   }
 
   if (!(await currentUser())) {
+    mode = 'login';
+    applyMode();
     message.textContent =
-      'Account created, but no session was returned. Turn off email confirmation in Supabase.';
+      'Account created. Check your email for a confirmation link, then log in here.';
     return;
   }
 
