@@ -72,8 +72,22 @@ async function renderInbox() {
     : empty('&#10003;', 'Inbox zero', 'Everything is filed.');
 }
 
+// Fetch generously, then show exactly two rows of whatever the window fits.
+// The column count is read back from the rendered grid rather than recomputed
+// from the minmax(), so it stays correct if the CSS changes.
+const RECENT_CAP = 24;
+
+function fillTwoRows() {
+  const grid = document.querySelector('#recent .grid-notes');
+  if (!grid || !grid.children.length) return;
+
+  const cols = getComputedStyle(grid).gridTemplateColumns.split(' ').filter(Boolean);
+  const max = Math.max(cols.length, 1) * 2;
+  [...grid.children].forEach((card, i) => { card.hidden = i >= max; });
+}
+
 async function renderRecent() {
-  const files = await recentFiles(6);
+  const files = await recentFiles(RECENT_CAP);
 
   document.querySelector('#recent').innerHTML = files.length
     ? '<div class="grid-notes">' + files.map((f) => {
@@ -94,6 +108,8 @@ async function renderRecent() {
           '&#128465;</button></span></div>';
       }).join('') + '</div>'
     : empty('&#9998;', 'Nothing yet', 'Write the first thing on your mind.');
+
+  fillTwoRows();
 }
 
 // The neglect map: which fronts of a project have gone quiet. This is half the
@@ -256,6 +272,12 @@ async function remove(button) {
     alert('Could not delete. Check your connection and try again.');
   }
 }
+
+let resizeTimer;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(fillTwoRows, 120);
+});
 
 async function main() {
   if (!(await requireUser())) return;

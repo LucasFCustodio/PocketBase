@@ -77,17 +77,40 @@ Project            e.g. "DollarSeeds" (a budgeting app the user is building)
 - **Project** — top-level container. Belongs to one user.
 - **Directory** — a folder inside a project. May nest inside another directory
   (self-referencing `parent_id`). Arbitrary depth, but the UI does not need to
-  encourage going deep.
+  encourage going deep. `sort_order` fixes positions; `is_inbox` marks the one
+  Inbox directory per project.
 - **File** — the leaf. This is where the idea text lives: a title and a body.
+  The title is derived from the first line of the body.
 
 Everything is owned by a single user. There is no sharing.
+
+**Seeded tree.** New projects (including the one created at signup, by a
+trigger on `auth.users`) get a default tree so the user never faces an empty
+folder list: `Inbox · Feature · Upgrades · Marketing · Money · Research`, with
+`Marketing › SEO › Keywords / On-Page / Backlinks` as the one three-level
+branch. See `supabase/migrations/0002_seed.sql`.
+
+## Capture flow
+
+The rule that shapes capture: **the idea is saved before any filing question
+is asked.** The file is INSERTed (into the Inbox) the moment the user finishes
+writing; every later step — project, area, sub-area — is an UPDATE. Abandoning
+the flow at any point still keeps the idea. Do not reorder this.
+
+- On Home, the capture card *is* the input. Ctrl/Cmd+Enter or "Evolve my
+  Ideas" starts filing; the overlay must not show a second text box.
+- The unsaved draft is held in `localStorage` (`pocketbase.draft`) until the
+  insert lands, so a failed save loses nothing.
+- Ideas can be moved later (the gear on a card re-opens the filing questions)
+  and deleted (the only irreversible action, so it confirms first).
 
 ## Stack
 
 - **Frontend** — plain HTML, CSS, and JavaScript. No framework, no build step,
   no bundler. ES modules loaded directly by the browser. If a dependency is
   needed, load it from a CDN rather than adding npm tooling to the frontend.
-- **Backend** — Node.js. Kept deliberately thin (see below).
+- **Backend** — Supabase is the backend. There is currently **no custom
+  server code** in production. Node.js is reserved for the Pocket AI phase.
 - **Database + Auth** — Supabase (Postgres + Supabase Auth).
 
 ### Where logic lives
@@ -96,14 +119,22 @@ Default to talking to Supabase **directly from the browser** using the
 `@supabase/supabase-js` client and row-level security. This keeps the app
 deployable as static files and removes a whole tier of code.
 
-The Node.js backend exists only for work that genuinely cannot happen in the
-browser — principally the Pocket AI API integration, which needs a secret API
-key that must never be shipped to the client. Do not route ordinary CRUD
-through Node "for consistency"; that is the kind of complexity this project is
-avoiding.
+How requests flow in production: Netlify only hands the browser the HTML, CSS,
+and JS. The JS then sends HTTPS requests from the user's browser straight to
+Supabase's hosted REST/Auth API, which runs the query and answers. Supabase
+replaces the "server in the middle" a traditional app would need: the anon key
+identifies the project, the user's JWT identifies the user, and RLS in Postgres
+decides what that user may touch.
+
+Node.js is used only for work that genuinely cannot happen in the browser —
+principally the Pocket AI API integration, which needs a secret API key that
+must never be shipped to the client. Do not route ordinary CRUD through Node
+"for consistency"; that is the kind of complexity this project is avoiding.
 
 Never put a service-role key, or any secret, in frontend code. The Supabase
-anon key is safe to ship; RLS is what protects the data.
+URL and anon key are safe to ship and live in `js/config.js`, committed on
+purpose; RLS is what protects the data. `.env` is only for server-side
+secrets (service-role key, Pocket AI key).
 
 ## Authentication
 
@@ -118,48 +149,96 @@ Supabase Auth with email + password.
   restrict all reads and writes to `auth.uid() = user_id`. Do not rely on the
   frontend hiding things — enforce ownership in the database.
 - Unauthenticated visitors get redirected to the login page.
+- The session lives in browser storage per origin, so logging in on localhost
+  does not log you in on the deployed site — but the data is the same, because
+  both talk to the same Supabase project.
 
 ## Pages
 
-Three pages, no more.
+Three pages, no more. Home and Projects share a left sidebar
+(`js/sidebar.js`) and use a Milanote-style board layout.
 
-- **Home** — the landing page after login. Shows the last 3 files the user
-  worked on, each labeled with the project it belongs to, so the user can jump
-  straight back in. Should also offer the fastest possible path to creating a
-  new idea.
-- **Projects** — the list of the user's projects. Clicking a project opens it
-  and shows the directories and files inside, and lets the user navigate down
-  the tree.
-- **Login** — email + password, with a way to register.
+- **Home** (`index.html`) — the landing page after login. An inline capture
+  card (the fastest path to a new idea), a stats row, the **Inbox** of
+  unfiled ideas, **Where you left off** (the most recently updated files, each
+  labeled with its project), and **Gathering dust** — the top-level areas of
+  the current project that have gone 14+ days without a new or edited idea.
+  That last panel is the "which front have I neglected" half of the product.
+- **Projects** (`projects.html`) — the list of the user's projects. Clicking a
+  project opens it and shows its folders and ideas, with breadcrumbs to move
+  up and down the tree. Navigation within the page does not reload.
+- **Login** (`login.html`) — email + password, with a way to register.
 
-"Last worked on" is driven by an `updated_at` timestamp on files, touched on
-every edit.
+"Last worked on" is driven by an `updated_at` timestamp on files, touched by a
+database trigger on every edit.
 
 ## Conventions
 
 - Vanilla JS in ES modules. One module per concern; keep them short.
-- A single shared module owns the Supabase client and auth session — do not
-  instantiate clients ad hoc across files.
-- Keep DOM code and data-access code in separate modules.
-- Secrets and project URLs come from environment config, not hardcoded literals
-  checked into git. Keep a `.env.example` current; never commit `.env`.
-- SQL schema and RLS policies live in the repo as migration files so the
-  database can be rebuilt from scratch.
+- A single shared module (`js/supabase.js`) owns the Supabase client and auth
+  session — do not instantiate clients ad hoc across files.
+- Keep DOM code and data-access code in separate modules. All queries live in
+  `js/data.js`.
+- Secrets come from environment config, never from files under `js/`. Keep a
+  `.env.example` current; never commit `.env`.
+- SQL schema and RLS policies live in the repo as migration files
+  (`supabase/migrations/`) so the database can be rebuilt from scratch.
+  `supabase/setup.sql` is the same migrations concatenated for pasting into
+  the SQL editor in one go — keep it in sync when a migration changes.
 - Write code a reader can follow on the first pass. Comment only where the
   reason for something is not obvious from the code.
+- Save text files (including `README.md`) as UTF-8.
+
+## Running locally
+
+`node server.js` (optionally with a port) serves the repo root at
+`http://127.0.0.1:3000`. It is a dependency-free static file server that exists
+only because browsers will not load ES modules over `file://`. It is not
+deployed and has no API routes.
 
 ## Deployment
 
-The frontend deploys as static files to Netlify. Deploy sparingly — only when
-the project is finished — to stay inside Netlify's free tier.
+The frontend deploys as static files to Netlify. There is no build step; the
+publish directory is the repository root. Deploy sparingly — only when the
+project is finished — to stay inside Netlify's free tier.
 
-Because Netlify serves static files, any Node.js backend work should be written
-as a Netlify Function rather than a long-running server, unless there is a
-concrete reason otherwise. Confirm the approach before building out a separate
-hosted Node service.
+- Set Supabase **Authentication → URL Configuration → Site URL** to the
+  Netlify URL.
+- Supabase pauses free projects after about a week of inactivity. Use the app
+  shortly before submitting and around grading time; restore from the Supabase
+  dashboard if it paused.
+- Graders who register get their own, empty account (RLS). Anything they
+  should see populated has to be shown in the demo video or via a demo account.
+
+Any future Node.js backend work (Pocket AI) should be written as a Netlify
+Function: same origin, no CORS setup, no separate host. A separate always-on
+service (e.g. Render) is not needed for anything the app does today, and its
+free tier adds cold starts and cross-origin setup. Confirm the approach before
+building out a separate hosted Node service.
+
+## Assignment deliverables
+
+The course (Engineering Design 2, "Build software with AI") grades on:
+
+| Category | Points | What it wants |
+| --- | --- | --- |
+| Hootcamp material | 10 | Concepts from the lectures visible in the implementation |
+| GitHub repository | 15 | Public, organized, meaningful and regular commits |
+| Application functionality | 40 | Database + auth integrated, data stored and retrieved correctly, frontend ↔ backend interaction |
+| Documentation | 10 | README: project, setup, technologies, how to run |
+| Demo video (3–5 min) | 25 | Purpose, features, code structure, design decisions |
+
+The README must include: name and description, link to the deployed app, a
+link to an **unlisted** YouTube demo (3–5 min, on the *deployed* site, showing
+registration, login, database functionality, and a code/structure walkthrough),
+what the app does, technologies used, setup instructions.
+
+Required app surface: register, log in, log out, view data, and full CRUD, with
+authentication required before creating or modifying data.
 
 ## Git
 
-- Public GitHub repository; commit regularly with meaningful messages.
+- Public GitHub repository (`LucasFCustodio/PocketBase`); commit regularly with
+  meaningful messages.
 - Commit in small, working increments rather than one large drop.
 - Branch for features and merge via pull request where practical.
